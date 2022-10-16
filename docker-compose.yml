@@ -1,0 +1,65 @@
+version: "3.8"
+# network
+networks:
+  project2_network:
+    name: project2_network
+# Container file storage volume
+volumes:
+  jenkins-docker-certs:
+  jenkins-data:
+
+services:
+  # For details, see: https://www.jenkins.io/doc/book/installing/docker/
+  project2_dind:
+    # name of the image built
+    image: project2_dind:1.0
+    # Grant root permission to container
+    privileged: true
+    # container name
+    container_name: project2_dind
+    # restart when error
+    restart: on-failure
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    build:
+      # . means from the directory which this file in
+      context: .
+      # docker commands to run when build
+      dockerfile: project2_dind.dockerfile
+    # container network
+    networks:
+      - project2_network
+    volumes:
+      - jenkins-docker-certs:/certs/client
+      - jenkins-data:/var/jenkins_home
+    # map container port to host port
+    ports:
+      - "2376:2376"
+      - "3000:3000"
+
+  project2_jenkins:
+    image: project2_jenkins:1.0
+    container_name: project2_jenkins
+    restart: on-failure
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    build:
+      context: .
+      dockerfile: project2_jenkins.dockerfile
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: 1
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    # container network
+    networks:
+      - project2_network
+    # other dependent container.
+    # This container will start when all \
+    # dependent container has started.
+    depends_on:
+      - project2_dind
+
